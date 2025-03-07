@@ -78,9 +78,9 @@
     function createSettingsPanel() {
         settingsPanel.innerHTML = `
             <h3>設定</h3>
-            <label>通過時間 (秒): <input type="range" id="duration" min="1" max="10" step="0.5" value="${settings.duration}"><span id="durationValue">${settings.duration}</span></label><br>
-            <label>フォントサイズ (px): <input type="range" id="fontSize" min="12" max="100" step="1" value="${parseInt(settings.fontSize)}"><span id="fontSizeValue">${parseInt(settings.fontSize)}</span></label><br>
-            <label>フォントファミリー: 
+            <label>時間 (秒): <input type="range" id="duration" min="1" max="10" step="0.5" value="${settings.duration}"><span id="durationValue">${settings.duration}</span></label><br>
+            <label>文字の大きさ (px): <input type="range" id="fontSize" min="12" max="100" step="1" value="${parseInt(settings.fontSize)}"><span id="fontSizeValue">${parseInt(settings.fontSize)}</span></label><br>
+            <label>フォント: 
                 <select id="fontFamily">
                     <option value="'SM P ゴシック', sans-serif" ${settings.fontFamily === "'SM P ゴシック', sans-serif" ? 'selected' : ''}>SM P ゴシック</option>
                     <option value="'Arial', sans-serif" ${settings.fontFamily === "'Arial', sans-serif" ? 'selected' : ''}>Arial</option>
@@ -95,7 +95,7 @@
             <label>縁の色: <input type="color" id="strokeColor" value="${settings.strokeColor}"><span id="strokeColorValue">${settings.strokeColor}</span></label><br>
             <label>テキストの色: <input type="color" id="textColor" value="${settings.textColor}"><span id="textColorValue">${settings.textColor}</span></label><br>
             <label>行間: <input type="range" id="lineSpacing" min="0" max="10" step="0.1" value="${settings.lineSpacing}"><span id="lineSpacingValue">${settings.lineSpacing.toFixed(1)}</span></label><br>
-            <label>絵文字をブロック: <input type="checkbox" id="blockEmoji" ${settings.blockEmoji ? 'checked' : ''}></label><br>
+            <label>絵文字をブロック（推奨）: <input type="checkbox" id="blockEmoji" ${settings.blockEmoji ? 'checked' : ''}></label><br>
             <label>フォントの太さ: 
                 <select id="fontWeight">
                     <option value="normal" ${settings.fontWeight === 'normal' ? 'selected' : ''}>標準</option>
@@ -105,7 +105,7 @@
                 </select>
             </label><br>
             <button id="closeSettings">閉じる</button>
-            <button id="clearComments">コメントを削除</button>
+            <button id="clearComments">コメントリフレッシュ</button>
         `;
         document.getElementById('duration').addEventListener('input', (e) => {
             settings.duration = parseFloat(e.target.value);
