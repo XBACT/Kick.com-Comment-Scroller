@@ -11,7 +11,7 @@
 // @description:en Scroll the KICK comments to the screen.
 // @updateURL    https://raw.githubusercontent.com/XBACT/Kick.com-Comment-Scroller/blob/main/Kick.com-Comment-Scroller.user.js
 // @downloadURL  https://raw.githubusercontent.com/XBACT/Kick.com-Comment-Scroller/blob/main/Kick.com-Comment-Scroller.user.js
-// @homepageURL   https://github.com/あなたのユーザー名/あなたのレポジトリ
+// @homepageURL   https://github.com/XBACT/Kick.com-Comment-Scroller/
 // @supportURL    https://github.com/XBACT/Kick.com-Comment-Scroller/issues
 // ==/UserScript==
 
