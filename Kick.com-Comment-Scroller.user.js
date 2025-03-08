@@ -4,6 +4,7 @@
 // @version      1.1
 // @description  Scroll the KICK comments to the screen.
 // @match        https://kick.com/*
+// @license      MIT
 // @grant        none
 // ==/UserScript==
 (function() {
