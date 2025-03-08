@@ -67,7 +67,7 @@
             <label>縁の色: <input type="color" id="strokeColor" value="${settings.strokeColor}"><span id="strokeColorValue">${settings.strokeColor}</span></label><br>
             <label>テキストの色: <input type="color" id="textColor" value="${settings.textColor}"><span id="textColorValue">${settings.textColor}</span></label><br>
             <label>行間: <input type="range" id="lineSpacing" min="0" max="10" step="0.1" value="${settings.lineSpacing}"><span id="lineSpacingValue">${settings.lineSpacing.toFixed(1)}</span></label><br>
-            <label>絵文字をブロック: <input type="checkbox" id="blockEmoji" ${settings.blockEmoji ? 'checked' : ''}></label><br>
+            <label>絵文字をブロック（推奨）: <input type="checkbox" id="blockEmoji" ${settings.blockEmoji ? 'checked' : ''}></label><br>
             <label>フォントの太さ:
                 <select id="fontWeight">
                     <option value="normal" ${settings.fontWeight === 'normal' ? 'selected' : ''}>標準</option>
