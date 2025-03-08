@@ -1,17 +1,13 @@
 // ==UserScript==
-// @name         Kick.com Comment Scroller
+// @name         Kick Comment Scroller
 // @namespace    http://tampermonkey.net/
-// @version      1.0
+// @version      1.1
 // @description  Scroll the KICK comments to the screen.
 // @match        https://kick.com/*
 // @grant        none
 // ==/UserScript==
 (function() {
     'use strict';
-    const isStreamPage = () => {
-        const urlPattern = /^https:\/\/kick\.com\/[a-zA-Z0-9_-]+$/;
-        return urlPattern.test(window.location.href);
-    };
     let settings = {
         duration: 5,
         fontSize: '75px',
@@ -24,10 +20,13 @@
         opacity: 1,
         blockEmoji: true,
         lineSpacing: 10.0,
+        ngComments: '',
     };
     if (localStorage.getItem('kickCommentScrollerSettings')) {
         settings = JSON.parse(localStorage.getItem('kickCommentScrollerSettings'));
     }
+    const currentUrl = window.location.href;
+    const isUserPage = /^https:\/\/kick\.com\/[a-zA-Z0-9_-]+$/.test(currentUrl);
     let scrollContainer = document.createElement('div');
     scrollContainer.style.position = 'absolute';
     scrollContainer.style.pointerEvents = 'none';
@@ -47,40 +46,13 @@
     settingsPanel.style.fontSize = '14px';
     settingsPanel.style.display = 'none';
     document.body.appendChild(settingsPanel);
-    const settingsButton = document.createElement('button');
-    settingsButton.textContent = '設定';
-    settingsButton.style.position = 'fixed';
-    settingsButton.style.zIndex = '10000';
-    settingsButton.style.bottom = '11px';
-    settingsButton.style.right = '149px';
-    settingsButton.style.padding = '5px 10px';
-    settingsButton.style.backgroundColor = '#333';
-    settingsButton.style.color = '#fff';
-    settingsButton.style.border = 'none';
-    settingsButton.style.borderRadius = '3px';
-    settingsButton.style.cursor = 'pointer';
-    settingsButton.style.fontFamily = "'Inter', sans-serif";
-    settingsButton.style.fontWeight = '600';
-    settingsButton.addEventListener('click', () => {
-        settingsPanel.style.display = settingsPanel.style.display === 'block' ? 'none' : 'block';
-        if (settingsPanel.style.display === 'block') {
-            const rect = getVideoFrame().getBoundingClientRect();
-            settingsPanel.style.top = `${rect.top + window.scrollY + 10}px`;
-            settingsPanel.style.left = `${rect.left + window.scrollX + rect.width - settingsPanel.offsetWidth - 10}px`;
-        }
-    });
-    if (!isStreamPage()) {
-        settingsButton.style.display = 'none';
-        settingsPanel.style.display = 'none';
-    } else {
-        document.body.appendChild(settingsButton);
-    }
     function createSettingsPanel() {
+        if (!isUserPage) return;
         settingsPanel.innerHTML = `
             <h3>設定</h3>
-            <label>時間 (秒): <input type="range" id="duration" min="1" max="10" step="0.5" value="${settings.duration}"><span id="durationValue">${settings.duration}</span></label><br>
-            <label>文字の大きさ (px): <input type="range" id="fontSize" min="12" max="100" step="1" value="${parseInt(settings.fontSize)}"><span id="fontSizeValue">${parseInt(settings.fontSize)}</span></label><br>
-            <label>フォント: 
+            <label>通過時間 (秒): <input type="range" id="duration" min="1" max="10" step="0.5" value="${settings.duration}"><span id="durationValue">${settings.duration}</span></label><br>
+            <label>フォントサイズ (px): <input type="range" id="fontSize" min="12" max="100" step="1" value="${parseInt(settings.fontSize)}"><span id="fontSizeValue">${parseInt(settings.fontSize)}</span></label><br>
+            <label>フォントファミリー:
                 <select id="fontFamily">
                     <option value="'SM P ゴシック', sans-serif" ${settings.fontFamily === "'SM P ゴシック', sans-serif" ? 'selected' : ''}>SM P ゴシック</option>
                     <option value="'Arial', sans-serif" ${settings.fontFamily === "'Arial', sans-serif" ? 'selected' : ''}>Arial</option>
@@ -95,8 +67,8 @@
             <label>縁の色: <input type="color" id="strokeColor" value="${settings.strokeColor}"><span id="strokeColorValue">${settings.strokeColor}</span></label><br>
             <label>テキストの色: <input type="color" id="textColor" value="${settings.textColor}"><span id="textColorValue">${settings.textColor}</span></label><br>
             <label>行間: <input type="range" id="lineSpacing" min="0" max="10" step="0.1" value="${settings.lineSpacing}"><span id="lineSpacingValue">${settings.lineSpacing.toFixed(1)}</span></label><br>
-            <label>絵文字をブロック（推奨）: <input type="checkbox" id="blockEmoji" ${settings.blockEmoji ? 'checked' : ''}></label><br>
-            <label>フォントの太さ: 
+            <label>絵文字をブロック: <input type="checkbox" id="blockEmoji" ${settings.blockEmoji ? 'checked' : ''}></label><br>
+            <label>フォントの太さ:
                 <select id="fontWeight">
                     <option value="normal" ${settings.fontWeight === 'normal' ? 'selected' : ''}>標準</option>
                     <option value="bold" ${settings.fontWeight === 'bold' ? 'selected' : ''}>太字</option>
@@ -104,8 +76,9 @@
                     <option value="900" ${settings.fontWeight === '900' ? 'selected' : ''}>900</option>
                 </select>
             </label><br>
+            <label>NGコメントリスト (カンマ区切り): <input type="text" id="ngComments" value="${settings.ngComments}" placeholder="例: スパム,広告,NGワード"></label><br>
             <button id="closeSettings">閉じる</button>
-            <button id="clearComments">コメントリフレッシュ</button>
+            <button id="clearComments">コメントを削除</button>
         `;
         document.getElementById('duration').addEventListener('input', (e) => {
             settings.duration = parseFloat(e.target.value);
@@ -159,6 +132,10 @@
             settings.fontWeight = e.target.value;
             localStorage.setItem('kickCommentScrollerSettings', JSON.stringify(settings));
         });
+        document.getElementById('ngComments').addEventListener('input', (e) => {
+            settings.ngComments = e.target.value;
+            localStorage.setItem('kickCommentScrollerSettings', JSON.stringify(settings));
+        });
         document.getElementById('closeSettings').addEventListener('click', () => {
             settingsPanel.style.display = 'none';
         });
@@ -170,24 +147,47 @@
             usedHeights.length = 0;
         });
     }
+    const settingsButton = document.createElement('button');
+    settingsButton.textContent = '設定';
+    settingsButton.style.position = 'fixed';
+    settingsButton.style.zIndex = '10000';
+    settingsButton.style.bottom = '11px';
+    settingsButton.style.right = '149px';
+    settingsButton.style.padding = '5px 10px';
+    settingsButton.style.backgroundColor = '#333';
+    settingsButton.style.color = '#fff';
+    settingsButton.style.border = 'none';
+    settingsButton.style.borderRadius = '3px';
+    settingsButton.style.cursor = 'pointer';
+    settingsButton.style.fontFamily = "'Inter', sans-serif";
+    settingsButton.style.fontWeight = '600';
+    settingsButton.style.display = isUserPage ? 'block' : 'none';
+    settingsButton.addEventListener('click', () => {
+        settingsPanel.style.display = settingsPanel.style.display === 'block' ? 'none' : 'block';
+        if (settingsPanel.style.display === 'block') {
+            const rect = getVideoFrame().getBoundingClientRect();
+            settingsPanel.style.top = `${rect.top + window.scrollY + 10}px`;
+            settingsPanel.style.left = `${rect.left + window.scrollX + rect.width - settingsPanel.offsetWidth - 10}px`;
+        }
+    });
+    document.body.appendChild(settingsButton);
     function getVideoFrame() {
-        let videoFrame = document.querySelector('div.relative.aspect-video.w-full') || 
-                        document.querySelector('div[id*="amazon-ivs-player"]')?.parentElement || 
-                        document.querySelector('video')?.parentElement?.parentElement || 
-                        document.querySelector('div[class*="video-player"]') || 
+        let videoFrame = document.querySelector('div.relative.aspect-video.w-full') ||
+                        document.querySelector('div[id*="amazon-ivs-player"]')?.parentElement ||
+                        document.querySelector('video')?.parentElement?.parentElement ||
+                        document.querySelector('div[class*="video-player"]') ||
                         document.querySelector('div[class*="player-container"]');
         if (!videoFrame) {
-            videoFrame = { 
-                offsetTop: window.innerHeight * 0.2, 
-                offsetLeft: window.innerWidth * 0.2, 
-                offsetWidth: window.innerWidth * 0.6, 
-                offsetHeight: window.innerHeight * 0.6 
+            videoFrame = {
+                offsetTop: window.innerHeight * 0.2,
+                offsetLeft: window.innerWidth * 0.2,
+                offsetWidth: window.innerWidth * 0.6,
+                offsetHeight: window.innerHeight * 0.6
             };
         }
         return videoFrame;
     }
     function updateScrollContainer() {
-        if (!isStreamPage()) return;
         const videoFrame = getVideoFrame();
         if (scrollContainer.parentNode) {
             scrollContainer.parentNode.removeChild(scrollContainer);
@@ -212,9 +212,9 @@
             return 0;
         }
         for (let i = 0; i < MAX_HEIGHTS; i++) {
-            const height = i * settings.lineSpacing;
-            const topPosition = (height / (MAX_HEIGHTS * settings.lineSpacing)) * frameHeight;
-            if (!usedHeights.some(h => Math.abs(h - topPosition) < settings.lineSpacing * 2)) {
+            const height = i * (settings.lineSpacing + parseInt(settings.fontSize));
+            const topPosition = height % frameHeight;
+            if (!usedHeights.some(h => Math.abs(h - topPosition) < (settings.lineSpacing + parseInt(settings.fontSize)))) {
                 usedHeights.push(topPosition);
                 return topPosition;
             }
@@ -237,9 +237,16 @@
         `;
         element.style.textShadow = shadow;
     }
+    function isNgComment(commentText) {
+        if (!settings.ngComments) return false;
+        const ngList = settings.ngComments.split(',').map(word => word.trim()).filter(word => word);
+        return ngList.some(word => commentText.includes(word));
+    }
     function scrollComment(commentText) {
-        if (!isStreamPage()) return;
         if (!commentText || displayedComments.has(commentText)) return;
+        if (isNgComment(commentText)) {
+            return;
+        }
         displayedComments.add(commentText);
         const videoFrame = getVideoFrame();
         const rect = videoFrame.getBoundingClientRect();
@@ -267,8 +274,12 @@
         const styleSheet = document.createElement('style');
         styleSheet.textContent = `
             @keyframes scroll {
-                from { transform: translateX(0); }
-                to { transform: translateX(var(--travel-distance)); }
+                from {
+                    transform: translateX(0);
+                }
+                to {
+                    transform: translateX(var(--travel-distance));
+                }
             }
         `;
         document.head.appendChild(styleSheet);
@@ -279,7 +290,6 @@
         }, settings.duration * 1000);
     }
     function setupObserver(target) {
-        if (!isStreamPage()) return;
         const observer = new MutationObserver((mutations) => {
             mutations.forEach((mutation) => {
                 const newNodes = mutation.addedNodes;
@@ -326,18 +336,17 @@
     function findChatContainer() {
         let container = document.getElementById('chatroom-messages');
         if (!container) {
-            container = document.getElementById('chat-message-actions') || 
-                        document.querySelector('div[data-index]') || 
-                        document.querySelector('div[class*="chat"]') || 
-                        document.querySelector('div[id*="chat"]') || 
-                        document.querySelector('div[class*="message-container"]') || 
-                        document.querySelector('div[class*="betterhover"]') || 
+            container = document.getElementById('chat-message-actions') ||
+                        document.querySelector('div[data-index]') ||
+                        document.querySelector('div[class*="chat"]') ||
+                        document.querySelector('div[id*="chat"]') ||
+                        document.querySelector('div[class*="message-container"]') ||
+                        document.querySelector('div[class*="betterhover"]') ||
                         document.body;
         }
         return container;
     }
     function monitorChatContainer() {
-        if (!isStreamPage()) return;
         const chatContainer = findChatContainer();
         if (chatContainer) {
             setupObserver(chatContainer);
@@ -353,20 +362,4 @@
     monitorChatContainer();
     window.addEventListener('resize', updateScrollContainer);
     window.addEventListener('scroll', updateScrollContainer);
-    let lastUrl = window.location.href;
-    const urlObserver = new MutationObserver(() => {
-        if (window.location.href !== lastUrl) {
-            lastUrl = window.location.href;
-            if (!isStreamPage()) {
-                settingsButton.style.display = 'none';
-                settingsPanel.style.display = 'none';
-            } else {
-                settingsButton.style.display = 'block';
-                settingsPanel.style.display = 'none';
-            }
-            updateScrollContainer();
-            monitorChatContainer();
-        }
-    });
-    urlObserver.observe(document, { subtree: true, childList: true });
 })();
