@@ -51,8 +51,8 @@
         settingsPanel.innerHTML = `
             <h3>設定</h3>
             <label>通過時間 (秒): <input type="range" id="duration" min="1" max="10" step="0.5" value="${settings.duration}"><span id="durationValue">${settings.duration}</span></label><br>
-            <label>フォントサイズ (px): <input type="range" id="fontSize" min="12" max="100" step="1" value="${parseInt(settings.fontSize)}"><span id="fontSizeValue">${parseInt(settings.fontSize)}</span></label><br>
-            <label>フォントファミリー:
+            <label>テキストサイズ (px): <input type="range" id="fontSize" min="12" max="100" step="1" value="${parseInt(settings.fontSize)}"><span id="fontSizeValue">${parseInt(settings.fontSize)}</span></label><br>
+            <label>フォント:
                 <select id="fontFamily">
                     <option value="'SM P ゴシック', sans-serif" ${settings.fontFamily === "'SM P ゴシック', sans-serif" ? 'selected' : ''}>SM P ゴシック</option>
                     <option value="'Arial', sans-serif" ${settings.fontFamily === "'Arial', sans-serif" ? 'selected' : ''}>Arial</option>
@@ -78,7 +78,7 @@
             </label><br>
             <label>NGコメントリスト (カンマ区切り): <input type="text" id="ngComments" value="${settings.ngComments}" placeholder="例: スパム,広告,NGワード"></label><br>
             <button id="closeSettings">閉じる</button>
-            <button id="clearComments">コメントを削除</button>
+            <button id="clearComments">コメントをリフレッシュ</button>
         `;
         document.getElementById('duration').addEventListener('input', (e) => {
             settings.duration = parseFloat(e.target.value);
