@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Kickコメントスクロール, Kick弾幕, Kick Comment Scroller
 // @namespace    http://tampermonkey.net/
-// @version      1.2
+// @version      1.3
 // @description  Kickで弾幕を表示
 // @match        https://kick.com/*
 // @license      MIT
@@ -22,8 +22,8 @@
         ja: {
             title: "設定",
             duration: "通過時間 (秒)",
-            fontSize: "テキストサイズ (px)",
-            fontFamily: "フォント",
+            fontSize: "フォントサイズ (px)",
+            fontFamily: "フォントファミリー",
             opacity: "透明度",
             strokeWidth: "縁の太さ (px)",
             strokeOpacity: "縁の透明度",
@@ -146,6 +146,44 @@
         opacity: '1'
     });
 
+    let lastUrl = window.location.href;
+    let currentObserver = null;
+
+    function resetObserver() {
+        if (currentObserver) {
+            currentObserver.disconnect();
+        }
+        const chatContainer = findChatContainer();
+        if (chatContainer) {
+            currentObserver = setupObserver(chatContainer);
+        }
+    }
+
+    function monitorUrlChange() {
+        const newUrl = window.location.href;
+        if (newUrl !== lastUrl) {
+            lastUrl = newUrl;
+            resetObserver();
+            updateScrollContainer();
+        }
+        setTimeout(monitorUrlChange, 1000);
+    }
+
+    function initialize() {
+        if (document.body) {
+            ensurePanelInDOM();
+            ensureButtonInDOM();
+            if (!settingsPanelInitialized) {
+                createSettingsPanel();
+            }
+            updateScrollContainer();
+            resetObserver();
+            monitorUrlChange();
+        } else {
+            setTimeout(initialize, 1000);
+        }
+    }
+
     settingsButton.addEventListener('click', () => {
         try {
             if (settingsPanel.classList.contains('visible')) {
@@ -210,7 +248,7 @@
                 <h3>${t.title}</h3>
                 <label>${t.duration}: <input type="range" id="duration" min="1" max="10" step="0.5" value="${settings.duration}"><span id="durationValue">${settings.duration}</span></label><br>
                 <label>${t.fontSize}: <input type="range" id="fontSize" min="12" max="100" step="1" value="${parseInt(settings.fontSize)}"><span id="fontSizeValue">${parseInt(settings.fontSize)}</span></label><br>
-                <label>${t.fontFamily}: 
+                <label>${t.fontFamily}:
                     <select id="fontFamily">
                         <option value="'SM P ゴシック', sans-serif" ${settings.fontFamily === "'SM P ゴシック', sans-serif" ? 'selected' : ''}>SM P ゴシック</option>
                         <option value="'Arial', sans-serif" ${settings.fontFamily === "'Arial', sans-serif" ? 'selected' : ''}>Arial</option>
@@ -227,7 +265,7 @@
                 <label>${t.randomColor}: <input type="checkbox" id="randomColor" ${settings.randomColor ? 'checked' : ''}></label><br>
                 <label>${t.lineSpacing}: <input type="range" id="lineSpacing" min="0" max="1" step="0.1" value="${settings.lineSpacing}"><span id="lineSpacingValue">${settings.lineSpacing.toFixed(1)}</span></label><br>
                 <label>${t.blockEmoji}: <input type="checkbox" id="blockEmoji" ${settings.blockEmoji ? '' : 'checked'}></label><br>
-                <label>${t.fontWeight}: 
+                <label>${t.fontWeight}:
                     <select id="fontWeight">
                         <option value="normal" ${settings.fontWeight === 'normal' ? 'selected' : ''}>${settings.language === 'ja' ? '標準' : 'Normal'}</option>
                         <option value="bold" ${settings.fontWeight === 'bold' ? 'selected' : ''}>${settings.language === 'ja' ? '太字' : 'Bold'}</option>
@@ -239,7 +277,7 @@
                 <label>${t.ngRegex}: <input type="text" id="ngRegex" value="${settings.ngRegex}" placeholder="${settings.language === 'ja' ? '例: ^(spam|ad)$' : 'e.g., ^(spam|ad)$'}"></label><br>
                 <label>${t.maxComments}: <input type="range" id="maxComments" min="10" max="100" step="5" value="${settings.maxComments}" ${settings.unlimitedMaxComments ? 'disabled' : ''}><span id="maxCommentsValue">${settings.maxComments}</span></label><br>
                 <label>${t.unlimitedMaxComments}: <input type="checkbox" id="unlimitedMaxComments" ${settings.unlimitedMaxComments ? 'checked' : ''}></label><br>
-                <label>${t.language}: 
+                <label>${t.language}:
                     <select id="language">
                         <option value="ja" ${settings.language === 'ja' ? 'selected' : ''}>日本語</option>
                         <option value="en" ${settings.language === 'en' ? 'selected' : ''}>English</option>
@@ -428,14 +466,14 @@
 
     function getVideoFrame() {
         try {
-            let videoFrame = document.querySelector('div.relative.aspect-video.w-full') || 
-                            document.querySelector('div[id*="amazon-ivs-player"]')?.parentElement || 
-                            document.querySelector('video')?.parentElement?.parentElement || 
-                            document.querySelector('div[class*="video-player"]') || 
-                            document.querySelector('div[class*="player-container"]') || 
+            let videoFrame = document.querySelector('div.relative.aspect-video.w-full') ||
+                            document.querySelector('div[id*="amazon-ivs-player"]')?.parentElement ||
+                            document.querySelector('video')?.parentElement?.parentElement ||
+                            document.querySelector('div[class*="video-player"]') ||
+                            document.querySelector('div[class*="player-container"]') ||
                             document.body;
             if (!videoFrame || !videoFrame.getBoundingClientRect) {
-                videoFrame = { 
+                videoFrame = {
                     offsetTop: 0,
                     offsetLeft: 0,
                     offsetWidth: window.innerWidth,
@@ -732,16 +770,14 @@
 
     function findChatContainer() {
         try {
-            let container = document.getElementById('chatroom-messages');
-            if (!container) {
-                container = document.getElementById('chat-message-actions') || 
-                            document.querySelector('div[data-index]') || 
-                            document.querySelector('div[class*="chat"]') || 
-                            document.querySelector('div[id*="chat"]') || 
-                            document.querySelector('div[class*="message-container"]') || 
-                            document.querySelector('div[class*="betterhover"]') || 
+            let container = document.getElementById('chatroom-messages') ||
+                            document.getElementById('chat-message-actions') ||
+                            document.querySelector('div[data-index]') ||
+                            document.querySelector('div[class*="chat"]') ||
+                            document.querySelector('div[id*="chat"]') ||
+                            document.querySelector('div[class*="message-container"]') ||
+                            document.querySelector('div[class*="betterhover"]') ||
                             document.body;
-            }
             return container;
         } catch (e) {
             return document.body;
@@ -751,14 +787,11 @@
     function monitorChatContainer() {
         try {
             const chatContainer = findChatContainer();
-            if (chatContainer) {
-                setupObserver(chatContainer);
-            } else {
-                setTimeout(monitorChatContainer, 5000);
+            if (chatContainer && !currentObserver) {
+                currentObserver = setupObserver(chatContainer);
             }
-        } catch (e) {
-            setTimeout(monitorChatContainer, 5000);
-        }
+        } catch (e) {}
+        setTimeout(monitorChatContainer, 1000);
     }
 
     function initialize() {
