@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Kickコメントスクロール, Kick弾幕, Kick Comment Scroller
 // @namespace    http://tampermonkey.net/
-// @version      1.3
+// @version      1.4
 // @description  Kickで弾幕を表示
 // @match        https://kick.com/*
 // @license      MIT
@@ -39,6 +39,7 @@
             clearComments: "コメントを削除",
             maxComments: "最大表示数",
             unlimitedMaxComments: "最大表示数を無制限にする",
+            overlapComments: "コメントを重ねる",
             language: "言語"
         },
         en: {
@@ -61,9 +62,12 @@
             clearComments: "Clear Comments",
             maxComments: "Max Comments",
             unlimitedMaxComments: "Unlimited Max Comments",
+            overlapComments: "Overlap Comments",
             language: "Language"
         }
     };
+
+    const commentQueue = [];
 
     let settings = {
         duration: 5,
@@ -82,7 +86,8 @@
         randomColor: false,
         language: 'ja',
         maxComments: 50,
-        unlimitedMaxComments: false
+        unlimitedMaxComments: false,
+        overlapComments: false
     };
 
     try {
@@ -277,6 +282,7 @@
                 <label>${t.ngRegex}: <input type="text" id="ngRegex" value="${settings.ngRegex}" placeholder="${settings.language === 'ja' ? '例: ^(spam|ad)$' : 'e.g., ^(spam|ad)$'}"></label><br>
                 <label>${t.maxComments}: <input type="range" id="maxComments" min="10" max="100" step="5" value="${settings.maxComments}" ${settings.unlimitedMaxComments ? 'disabled' : ''}><span id="maxCommentsValue">${settings.maxComments}</span></label><br>
                 <label>${t.unlimitedMaxComments}: <input type="checkbox" id="unlimitedMaxComments" ${settings.unlimitedMaxComments ? 'checked' : ''}></label><br>
+                <label>${t.overlapComments}: <input type="checkbox" id="overlapComments" ${settings.overlapComments ? 'checked' : ''}></label><br>
                 <label>${t.language}:
                     <select id="language">
                         <option value="ja" ${settings.language === 'ja' ? 'selected' : ''}>日本語</option>
@@ -383,6 +389,11 @@
                 localStorage.setItem('kickCommentScrollerSettings', JSON.stringify(settings));
                 settingsPanelInitialized = false;
                 createSettingsPanel();
+            });
+
+            document.getElementById('overlapComments').addEventListener('change', (e) => {
+                settings.overlapComments = e.target.checked;
+                localStorage.setItem('kickCommentScrollerSettings', JSON.stringify(settings));
             });
 
             document.getElementById('closeSettings').addEventListener('click', () => {
@@ -547,6 +558,9 @@
 
     function getNextHeight(frameHeight, commentHeight) {
         try {
+            const maxHeight = frameHeight - commentHeight;
+            if (maxHeight < 0) return 0;
+
             if (usedHeights.length === 0) {
                 usedHeights.push(0);
                 return 0;
@@ -557,17 +571,21 @@
             const minSpacing = Math.max(fontSizePx, commentHeight);
             const totalSpacing = minSpacing + scaledLineSpacing;
 
-            for (let i = 0; i < MAX_HEIGHTS; i++) {
-                const height = i * totalSpacing;
-                const topPosition = height % frameHeight;
-                if (!usedHeights.some(h => Math.abs(h - topPosition) < minSpacing)) {
-                    usedHeights.push(topPosition);
-                    return topPosition;
+            if (settings.overlapComments) {
+                const randomHeight = Math.floor(Math.random() * maxHeight);
+                usedHeights.push(randomHeight);
+                return randomHeight;
+            } else {
+                for (let i = 0; i <= maxHeight / totalSpacing; i++) {
+                    const height = i * totalSpacing;
+                    const topPosition = height % maxHeight;
+                    if (!usedHeights.some(h => Math.abs(h - topPosition) < minSpacing)) {
+                        usedHeights.push(topPosition);
+                        return topPosition;
+                    }
                 }
+                return Math.floor(Math.random() * maxHeight);
             }
-
-            const randomIndex = Math.floor(Math.random() * usedHeights.length);
-            return usedHeights[randomIndex];
         } catch (e) {
             return 0;
         }
@@ -631,6 +649,7 @@
             }
 
             if (!settings.unlimitedMaxComments && displayedComments.size >= settings.maxComments) {
+                commentQueue.push({ commentText, imgElements, uniqueId });
                 return;
             }
 
@@ -687,23 +706,21 @@
             scrollComment.style.left = `${frameWidth}px`;
 
             const travelDistance = -(frameWidth + commentWidth);
-            let startTime = null;
 
-            function animate(timestamp) {
-                if (!startTime) startTime = timestamp;
-                const progress = (timestamp - startTime) / (settings.duration * 1000);
-                if (progress < 1) {
-                    scrollComment.style.transform = `translateX(${travelDistance * progress}px)`;
-                    requestAnimationFrame(animate);
-                } else {
-                    scrollComment.style.transform = `translateX(${travelDistance}px)`;
-                    scrollComment.remove();
-                    usedHeights.splice(usedHeights.indexOf(topPosition), 1);
-                    displayedComments.delete(uniqueId);
+            Object.assign(scrollComment.style, {
+                transition: `transform ${settings.duration}s linear`,
+                transform: `translateX(${travelDistance}px)`
+            });
+
+            scrollComment.addEventListener('transitionend', () => {
+                scrollComment.remove();
+                usedHeights.splice(usedHeights.indexOf(topPosition), 1);
+                displayedComments.delete(uniqueId);
+                if (commentQueue.length > 0) {
+                    const next = commentQueue.shift();
+                    scrollComment(next.commentText, next.imgElements, next.uniqueId);
                 }
-            }
-
-            requestAnimationFrame(animate);
+            }, { once: true });
 
         } catch (e) {}
     }
