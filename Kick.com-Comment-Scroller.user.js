@@ -1,3 +1,21 @@
+// ==UserScript==
+ // @name         Kickコメントスクロール, Kick弾幕, Kick Comment Scroller
+ // @namespace    http://tampermonkey.net/
+ // @version      1.5
+ // @description  Kickで弾幕を表示
+ // @match        https://kick.com/*
+ // @license      MIT
+ // @grant        none
+ // @run-at       document-end
+ // @name:en      Kick Comment Scroller
+ // @description:en Scroll the KICK comments to the screen.
+ // @updateURL    https://raw.githubusercontent.com/XBACT/Kick.com-Comment-Scroller/blob/main/Kick.com-Comment-Scroller.user.js
+ // @downloadURL  https://raw.githubusercontent.com/XBACT/Kick.com-Comment-Scroller/blob/main/Kick.com-Comment-Scroller.user.js
+ // @homepageURL   https://github.com/XBACT/Kick.com-Comment-Scroller/
+ // @supportURL    https://github.com/XBACT/Kick.com-Comment-Scroller/issues
+ // ==/UserScript==
+
+
 (function() {
     'use strict';
 
