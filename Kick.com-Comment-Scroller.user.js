@@ -87,7 +87,7 @@
         useUsernameColor: false,
         language: 'ja',
         maxComments: 50,
-        unlimitedMaxComments: false,
+        unlimitedMaxComments: true,
         overlapComments: false
     };
 
