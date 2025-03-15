@@ -81,7 +81,7 @@
         textColor: '#ffffff',
         opacity: 1,
         blockEmoji: false,
-        lineSpacing: 0.5,
+        lineSpacing: 0,
         ngComments: '',
         ngRegex: '',
         useUsernameColor: false,
