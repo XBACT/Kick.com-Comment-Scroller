@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Kickコメントスクロール, Kick弾幕, Kick Comment Scroller
 // @namespace    http://tampermonkey.net/
-// @version      1.4
+// @version      1.5
 // @description  Kickで弾幕を表示
 // @match        https://kick.com/*
 // @license      MIT
@@ -34,7 +34,7 @@
             fontWeight: "フォントの太さ",
             ngComments: "NGコメントリスト (カンマ区切り)",
             ngRegex: "正規表現フィルタ (オプション)",
-            randomColor: "コメント色をランダムにする",
+            useUsernameColor: "ユーザー名の色を使用",
             close: "閉じる",
             clearComments: "コメントを削除",
             maxComments: "最大表示数",
@@ -57,7 +57,7 @@
             fontWeight: "Font Weight",
             ngComments: "Blocked Comments (comma-separated)",
             ngRegex: "Regex Filter (Optional)",
-            randomColor: "Randomize Comment Color",
+            useUsernameColor: "Use Username Color",
             close: "Close",
             clearComments: "Clear Comments",
             maxComments: "Max Comments",
@@ -83,7 +83,7 @@
         lineSpacing: 0.5,
         ngComments: '',
         ngRegex: '',
-        randomColor: false,
+        useUsernameColor: false, // ユーザー名の色を使用する設定
         language: 'ja',
         maxComments: 50,
         unlimitedMaxComments: false,
@@ -174,21 +174,6 @@
         setTimeout(monitorUrlChange, 1000);
     }
 
-    function initialize() {
-        if (document.body) {
-            ensurePanelInDOM();
-            ensureButtonInDOM();
-            if (!settingsPanelInitialized) {
-                createSettingsPanel();
-            }
-            updateScrollContainer();
-            resetObserver();
-            monitorUrlChange();
-        } else {
-            setTimeout(initialize, 1000);
-        }
-    }
-
     settingsButton.addEventListener('click', () => {
         try {
             if (settingsPanel.classList.contains('visible')) {
@@ -244,9 +229,7 @@
     updateStylesheet();
 
     function createSettingsPanel() {
-        if (settingsPanelInitialized) {
-            return;
-        }
+        if (settingsPanelInitialized) return;
         try {
             const t = translations[settings.language] || translations['ja'];
             settingsPanel.innerHTML = `
@@ -267,7 +250,7 @@
                 <label>${t.strokeOpacity}: <input type="range" id="strokeOpacity" min="0" max="1" step="0.1" value="${settings.strokeOpacity}"><span id="strokeOpacityValue">${settings.strokeOpacity}</span></label><br>
                 <label>${t.strokeColor}: <input type="color" id="strokeColor" value="${settings.strokeColor}"><span id="strokeColorValue">${settings.strokeColor}</span></label><br>
                 <label>${t.textColor}: <input type="color" id="textColor" value="${settings.textColor}"><span id="textColorValue">${settings.textColor}</span></label><br>
-                <label>${t.randomColor}: <input type="checkbox" id="randomColor" ${settings.randomColor ? 'checked' : ''}></label><br>
+                <label>${t.useUsernameColor}: <input type="checkbox" id="useUsernameColor" ${settings.useUsernameColor ? 'checked' : ''}></label><br>
                 <label>${t.lineSpacing}: <input type="range" id="lineSpacing" min="0" max="1" step="0.1" value="${settings.lineSpacing}"><span id="lineSpacingValue">${settings.lineSpacing.toFixed(1)}</span></label><br>
                 <label>${t.blockEmoji}: <input type="checkbox" id="blockEmoji" ${settings.blockEmoji ? '' : 'checked'}></label><br>
                 <label>${t.fontWeight}:
@@ -341,8 +324,8 @@
                 localStorage.setItem('kickCommentScrollerSettings', JSON.stringify(settings));
             });
 
-            document.getElementById('randomColor').addEventListener('change', (e) => {
-                settings.randomColor = e.target.checked;
+            document.getElementById('useUsernameColor').addEventListener('change', (e) => {
+                settings.useUsernameColor = e.target.checked;
                 localStorage.setItem('kickCommentScrollerSettings', JSON.stringify(settings));
             });
 
@@ -424,14 +407,12 @@
                 }
 
                 document.addEventListener('mousemove', onMouseMove);
-
                 document.addEventListener('mouseup', () => {
                     document.removeEventListener('mousemove', onMouseMove);
                 }, { once: true });
             });
 
             settingsPanel.ondragstart = () => false;
-
             settingsPanelInitialized = true;
         } catch (e) {}
     }
@@ -440,9 +421,6 @@
         try {
             if (!document.getElementById('kickCommentScrollerSettings') && document.body) {
                 document.body.appendChild(settingsPanel);
-            } else if (document.getElementById('kickCommentScrollerSettings')) {
-            } else {
-                setTimeout(ensurePanelInDOM, 100);
             }
         } catch (e) {}
     }
@@ -451,9 +429,6 @@
         try {
             if (!document.getElementById('kickCommentScrollerButton') && document.body) {
                 document.body.appendChild(settingsButton);
-            } else if (document.getElementById('kickCommentScrollerButton')) {
-            } else {
-                setTimeout(ensureButtonInDOM, 100);
             }
         } catch (e) {}
     }
@@ -613,15 +588,11 @@
         try {
             if (settings.ngComments) {
                 const ngList = settings.ngComments.split(',').map(word => word.trim()).filter(word => word);
-                if (ngList.some(word => commentText.includes(word))) {
-                    return true;
-                }
+                if (ngList.some(word => commentText.includes(word))) return true;
             }
             if (settings.ngRegex) {
                 const regex = new RegExp(settings.ngRegex, 'i');
-                if (regex.test(commentText)) {
-                    return true;
-                }
+                if (regex.test(commentText)) return true;
             }
             return false;
         } catch (e) {
@@ -629,27 +600,12 @@
         }
     }
 
-    function getRandomColor() {
-        const letters = '0123456789ABCDEF';
-        let color = '#';
-        for (let i = 0; i < 6; i++) {
-            color += letters[Math.floor(Math.random() * 16)];
-        }
-        return color;
-    }
-
-    function scrollComment(commentText, imgElements = [], uniqueId) {
+    function scrollComment(commentText, imgElements = [], uniqueId, usernameColor = null) {
         try {
-            if (!commentText && imgElements.length === 0) {
-                return;
-            }
-
-            if (isNgComment(commentText)) {
-                return;
-            }
+            if (!commentText && imgElements.length === 0 || isNgComment(commentText)) return;
 
             if (!settings.unlimitedMaxComments && displayedComments.size >= settings.maxComments) {
-                commentQueue.push({ commentText, imgElements, uniqueId });
+                commentQueue.push({ commentText, imgElements, uniqueId, usernameColor });
                 return;
             }
 
@@ -661,9 +617,11 @@
             const frameHeight = rect.height;
 
             const scrollComment = document.createElement('span');
+            const textColor = settings.useUsernameColor && usernameColor ? usernameColor : settings.textColor;
+
             Object.assign(scrollComment.style, {
                 position: 'absolute',
-                color: settings.randomColor ? getRandomColor() : settings.textColor,
+                color: textColor,
                 fontSize: settings.fontSize,
                 fontFamily: settings.fontFamily,
                 fontWeight: settings.fontWeight,
@@ -706,7 +664,6 @@
             scrollComment.style.left = `${frameWidth}px`;
 
             const travelDistance = -(frameWidth + commentWidth);
-
             Object.assign(scrollComment.style, {
                 transition: `transform ${settings.duration}s linear`,
                 transform: `translateX(${travelDistance}px)`
@@ -718,84 +675,74 @@
                 displayedComments.delete(uniqueId);
                 if (commentQueue.length > 0) {
                     const next = commentQueue.shift();
-                    scrollComment(next.commentText, next.imgElements, next.uniqueId);
+                    scrollComment(next.commentText, next.imgElements, next.uniqueId, next.usernameColor);
                 }
             }, { once: true });
-
         } catch (e) {}
     }
 
     function setupObserver(target) {
         try {
             const observer = new MutationObserver((mutations) => {
-                try {
-                    mutations.forEach((mutation) => {
-                        const newNodes = mutation.addedNodes;
-                        for (let node of newNodes) {
-                            if (node.nodeType !== 1) continue;
+                mutations.forEach((mutation) => {
+                    const newNodes = mutation.addedNodes;
+                    for (let node of newNodes) {
+                        if (node.nodeType !== 1 || node.dataset.processed) continue;
+                        node.dataset.processed = 'true';
 
-                            if (node.dataset && node.dataset.processed) continue;
-                            node.dataset.processed = 'true';
+                        let commentText = '';
+                        let imgElements = [];
+                        let usernameColor = null;
 
-                            let commentText = '';
-                            let imgElements = [];
+                        if (!settings.blockEmoji) {
+                            const emoteSpans = node.querySelectorAll('span[data-emote-id]');
+                            imgElements = Array.from(emoteSpans)
+                                .map(span => span.querySelector('img'))
+                                .filter(img => img);
+                        }
 
-                            if (!settings.blockEmoji) {
-                                const emoteSpans = node.querySelectorAll('span[data-emote-id]');
-                                imgElements = Array.from(emoteSpans).map(span => {
-                                    const img = span.querySelector('img');
-                                    return img || null;
-                                }).filter(img => img);
-                            }
-
-                            let contentNode = node.querySelector('span[class*="font-normal"][class*="leading-\\[1\\.55\\]"]');
-                            if (contentNode) {
-                                let rawText = contentNode.textContent.trim();
-                                commentText = rawText.replace(/^\d{1,2}:\d{2}\s+[^:]+:\s*/, '').trim();
-                                const childNodes = contentNode.childNodes;
-                                for (let child of childNodes) {
-                                    if (child.nodeType === 3) {
-                                        let childText = child.textContent.trim();
-                                        if (childText) {
-                                            commentText = childText.replace(/^\d{1,2}:\d{2}\s+[^:]+:\s*/, '').trim();
-                                            break;
-                                        }
-                                    }
+                        let contentNode = node.querySelector('span[class*="font-normal"][class*="leading-\\[1\\.55\\]"]');
+                        if (contentNode) {
+                            let rawText = contentNode.textContent.trim();
+                            commentText = rawText.replace(/^\d{1,2}:\d{2}\s+[^:]+:\s*/, '').trim();
+                            const childNodes = contentNode.childNodes;
+                            for (let child of childNodes) {
+                                if (child.nodeType === 3 && child.textContent.trim()) {
+                                    commentText = child.textContent.replace(/^\d{1,2}:\d{2}\s+[^:]+:\s*/, '').trim();
+                                    break;
                                 }
                             }
-
-                            if (!commentText && imgElements.length === 0) {
-                                continue;
-                            }
-
-                            const imgSrcs = imgElements.map(img => img ? img.src : '').join('');
-                            const uniqueId = `${commentText}_${imgSrcs}`;
-
-                            if (displayedComments.has(uniqueId)) {
-                                continue;
-                            }
-
-                            scrollComment(commentText, imgElements, uniqueId);
                         }
-                    });
-                } catch (e) {}
-            });
 
+                        const usernameNode = node.querySelector('button.inline.font-bold');
+                        if (usernameNode && usernameNode.style.color) {
+                            usernameColor = usernameNode.style.color; // e.g., "rgb(147, 235, 224)"
+                        }
+
+                        if (!commentText && imgElements.length === 0) continue;
+
+                        const imgSrcs = imgElements.map(img => img ? img.src : '').join('');
+                        const uniqueId = `${commentText}_${imgSrcs}`;
+                        if (displayedComments.has(uniqueId)) continue;
+
+                        scrollComment(commentText, imgElements, uniqueId, usernameColor);
+                    }
+                });
+            });
             observer.observe(target, { childList: true, subtree: true });
         } catch (e) {}
     }
 
     function findChatContainer() {
         try {
-            let container = document.getElementById('chatroom-messages') ||
-                            document.getElementById('chat-message-actions') ||
-                            document.querySelector('div[data-index]') ||
-                            document.querySelector('div[class*="chat"]') ||
-                            document.querySelector('div[id*="chat"]') ||
-                            document.querySelector('div[class*="message-container"]') ||
-                            document.querySelector('div[class*="betterhover"]') ||
-                            document.body;
-            return container;
+            return document.getElementById('chatroom-messages') ||
+                   document.getElementById('chat-message-actions') ||
+                   document.querySelector('div[data-index]') ||
+                   document.querySelector('div[class*="chat"]') ||
+                   document.querySelector('div[id*="chat"]') ||
+                   document.querySelector('div[class*="message-container"]') ||
+                   document.querySelector('div[class*="betterhover"]') ||
+                   document.body;
         } catch (e) {
             return document.body;
         }
@@ -821,6 +768,7 @@
                 }
                 updateScrollContainer();
                 monitorChatContainer();
+                monitorUrlChange();
             } else {
                 setTimeout(initialize, 1000);
             }
@@ -828,17 +776,12 @@
     }
 
     if (document.readyState === 'loading') {
-        document.addEventListener('DOMContentLoaded', () => {
-            setTimeout(initialize, 1000);
-        });
+        document.addEventListener('DOMContentLoaded', () => setTimeout(initialize, 1000));
     } else {
         setTimeout(initialize, 1000);
     }
 
-    window.addEventListener('load', () => {
-        initialize();
-    });
-
+    window.addEventListener('load', initialize);
     window.addEventListener('resize', updateScrollContainer);
     window.addEventListener('scroll', updateScrollContainer);
 })();
