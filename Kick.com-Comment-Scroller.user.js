@@ -34,7 +34,7 @@
             fontWeight: "フォントの太さ",
             ngComments: "NGコメントリスト (カンマ区切り)",
             ngRegex: "正規表現フィルタ (オプション)",
-            useUsernameColor: "ユーザー名の色を使用",
+            useUsernameColor: "ユーザー名のグローバル名の色を使用",
             close: "閉じる",
             clearComments: "コメントを削除",
             maxComments: "最大表示数",
