@@ -1,20 +1,3 @@
-// ==UserScript==
-// @name         Kickコメントスクロール, Kick弾幕, Kick Comment Scroller
-// @namespace    http://tampermonkey.net/
-// @version      1.5
-// @description  Kickで弾幕を表示
-// @match        https://kick.com/*
-// @license      MIT
-// @grant        none
-// @run-at       document-end
-// @name:en      Kick Comment Scroller
-// @description:en Scroll the KICK comments to the screen.
-// @updateURL    https://raw.githubusercontent.com/XBACT/Kick.com-Comment-Scroller/blob/main/Kick.com-Comment-Scroller.user.js
-// @downloadURL  https://raw.githubusercontent.com/XBACT/Kick.com-Comment-Scroller/blob/main/Kick.com-Comment-Scroller.user.js
-// @homepageURL   https://github.com/XBACT/Kick.com-Comment-Scroller/
-// @supportURL    https://github.com/XBACT/Kick.com-Comment-Scroller/issues
-// ==/UserScript==
-
 (function() {
     'use strict';
 
@@ -83,7 +66,7 @@
         lineSpacing: 0.5,
         ngComments: '',
         ngRegex: '',
-        useUsernameColor: false, // ユーザー名の色を使用する設定
+        useUsernameColor: false,
         language: 'ja',
         maxComments: 50,
         unlimitedMaxComments: false,
@@ -367,16 +350,16 @@
                 localStorage.setItem('kickCommentScrollerSettings', JSON.stringify(settings));
             });
 
+            document.getElementById('overlapComments').addEventListener('change', (e) => {
+                settings.overlapComments = e.target.checked;
+                localStorage.setItem('kickCommentScrollerSettings', JSON.stringify(settings));
+            });
+
             document.getElementById('language').addEventListener('change', (e) => {
                 settings.language = e.target.value;
                 localStorage.setItem('kickCommentScrollerSettings', JSON.stringify(settings));
                 settingsPanelInitialized = false;
                 createSettingsPanel();
-            });
-
-            document.getElementById('overlapComments').addEventListener('change', (e) => {
-                settings.overlapComments = e.target.checked;
-                localStorage.setItem('kickCommentScrollerSettings', JSON.stringify(settings));
             });
 
             document.getElementById('closeSettings').addEventListener('click', () => {
@@ -716,7 +699,7 @@
 
                         const usernameNode = node.querySelector('button.inline.font-bold');
                         if (usernameNode && usernameNode.style.color) {
-                            usernameColor = usernameNode.style.color; // e.g., "rgb(147, 235, 224)"
+                            usernameColor = usernameNode.style.color;
                         }
 
                         if (!commentText && imgElements.length === 0) continue;
