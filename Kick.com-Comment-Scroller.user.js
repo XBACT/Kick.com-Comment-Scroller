@@ -1,7 +1,7 @@
 // ==UserScript==
  // @name         Kickコメントスクロール, Kick弾幕, Kick Comment Scroller
  // @namespace    http://tampermonkey.net/
- // @version      1.6
+ // @version      1.7
  // @description  Kickで弾幕を表示
  // @match        https://kick.com/*
  // @license      MIT
@@ -40,7 +40,7 @@
             clearComments: "コメントを削除",
             maxComments: "最大表示数",
             unlimitedMaxComments: "最大表示数を無制限にする",
-            overlapComments: "コメントを重ねる",
+            overlapComments: "コメントを重ねる(推奨OFF)",
             language: "言語",
             maxLines: "最大ライン数",
             autoMaxLines: "最大ライン数を自動設定"
@@ -96,7 +96,7 @@
         unlimitedMaxComments: true,
         overlapComments: false,
         maxLines: 15,
-        autoMaxLines: false
+        autoMaxLines: true
     };
 
     try {
