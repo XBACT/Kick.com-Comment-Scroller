@@ -73,8 +73,8 @@
     };
 
     const commentQueue = [];
-    const lines = []; // 各ラインのコメントを管理
-    let MAX_LINES = 15; // デフォルトの最大ライン数
+    const lines = [];
+    let MAX_LINES = 15;
 
     let settings = {
         duration: 5,
@@ -96,7 +96,7 @@
         unlimitedMaxComments: true,
         overlapComments: false,
         maxLines: 15,
-        autoMaxLines: true // 自動設定のデフォルト
+        autoMaxLines: false
     };
 
     try {
@@ -393,14 +393,14 @@
                 MAX_LINES = settings.maxLines;
                 document.getElementById('maxLinesValue').textContent = settings.maxLines;
                 localStorage.setItem('kickCommentScrollerSettings', JSON.stringify(settings));
-                lines.length = 0; // ラインをリセット
+                lines.length = 0;
             });
 
             document.getElementById('autoMaxLines').addEventListener('change', (e) => {
                 settings.autoMaxLines = e.target.checked;
                 document.getElementById('maxLines').disabled = settings.autoMaxLines;
                 localStorage.setItem('kickCommentScrollerSettings', JSON.stringify(settings));
-                lines.length = 0; // ラインをリセット
+                lines.length = 0;
             });
 
             document.getElementById('language').addEventListener('change', (e) => {
@@ -420,7 +420,7 @@
                     scrollContainer.removeChild(scrollContainer.firstChild);
                 }
                 displayedComments.clear();
-                lines.length = 0; // ラインもクリア
+                lines.length = 0;
             });
 
             const header = settingsPanel.querySelector('h3');
@@ -580,8 +580,8 @@
             const fontSizePx = parseInt(settings.fontSize);
             const commentHeight = fontSizePx;
             const lineHeight = commentHeight * (1 + settings.lineSpacing);
-            const maxLines = settings.autoMaxLines
-                ? Math.floor(frameHeight / lineHeight)
+            const maxLines = settings.autoMaxLines 
+                ? Math.floor(frameHeight / lineHeight) 
                 : Math.min(MAX_LINES, Math.floor(frameHeight / lineHeight));
 
             while (lines.length < maxLines) {
