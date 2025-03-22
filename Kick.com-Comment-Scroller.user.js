@@ -1,7 +1,7 @@
 // ==UserScript==
  // @name         Kickコメントスクロール, Kick弾幕, Kick Comment Scroller
  // @namespace    http://tampermonkey.net/
- // @version      1.5
+ // @version      1.6
  // @description  Kickで弾幕を表示
  // @match        https://kick.com/*
  // @license      MIT
@@ -41,7 +41,9 @@
             maxComments: "最大表示数",
             unlimitedMaxComments: "最大表示数を無制限にする",
             overlapComments: "コメントを重ねる",
-            language: "言語"
+            language: "言語",
+            maxLines: "最大ライン数",
+            autoMaxLines: "最大ライン数を自動設定"
         },
         en: {
             title: "Settings",
@@ -64,11 +66,15 @@
             maxComments: "Max Comments",
             unlimitedMaxComments: "Unlimited Max Comments",
             overlapComments: "Overlap Comments",
-            language: "Language"
+            language: "Language",
+            maxLines: "Max Lines",
+            autoMaxLines: "Auto Max Lines"
         }
     };
 
     const commentQueue = [];
+    const lines = []; // 各ラインのコメントを管理
+    let MAX_LINES = 15; // デフォルトの最大ライン数
 
     let settings = {
         duration: 5,
@@ -88,7 +94,9 @@
         language: 'ja',
         maxComments: 50,
         unlimitedMaxComments: true,
-        overlapComments: false
+        overlapComments: false,
+        maxLines: 15,
+        autoMaxLines: true // 自動設定のデフォルト
     };
 
     try {
@@ -97,8 +105,11 @@
             if (!settings.language || !translations[settings.language]) {
                 settings.language = 'ja';
             }
+            MAX_LINES = settings.maxLines;
         }
-    } catch (e) {}
+    } catch (e) {
+        console.error('設定読み込みエラー:', e);
+    }
 
     const currentUrl = window.location.href;
     const isUserPage = /^https:\/\/kick\.com\/[a-zA-Z0-9_-]+/.test(currentUrl);
@@ -185,7 +196,9 @@
                 settingsPanel.style.display = 'block';
                 setPanelPosition();
             }
-        } catch (e) {}
+        } catch (e) {
+            console.error('設定ボタンクリックエラー:', e);
+        }
     });
 
     let styleSheet = document.createElement('style');
@@ -267,6 +280,8 @@
                 <label>${t.maxComments}: <input type="range" id="maxComments" min="10" max="100" step="5" value="${settings.maxComments}" ${settings.unlimitedMaxComments ? 'disabled' : ''}><span id="maxCommentsValue">${settings.maxComments}</span></label><br>
                 <label>${t.unlimitedMaxComments}: <input type="checkbox" id="unlimitedMaxComments" ${settings.unlimitedMaxComments ? 'checked' : ''}></label><br>
                 <label>${t.overlapComments}: <input type="checkbox" id="overlapComments" ${settings.overlapComments ? 'checked' : ''}></label><br>
+                <label>${t.maxLines}: <input type="range" id="maxLines" min="5" max="30" step="1" value="${settings.maxLines}" ${settings.autoMaxLines ? 'disabled' : ''}><span id="maxLinesValue">${settings.maxLines}</span></label><br>
+                <label>${t.autoMaxLines}: <input type="checkbox" id="autoMaxLines" ${settings.autoMaxLines ? 'checked' : ''}></label><br>
                 <label>${t.language}:
                     <select id="language">
                         <option value="ja" ${settings.language === 'ja' ? 'selected' : ''}>日本語</option>
@@ -373,6 +388,21 @@
                 localStorage.setItem('kickCommentScrollerSettings', JSON.stringify(settings));
             });
 
+            document.getElementById('maxLines').addEventListener('input', (e) => {
+                settings.maxLines = parseInt(e.target.value);
+                MAX_LINES = settings.maxLines;
+                document.getElementById('maxLinesValue').textContent = settings.maxLines;
+                localStorage.setItem('kickCommentScrollerSettings', JSON.stringify(settings));
+                lines.length = 0; // ラインをリセット
+            });
+
+            document.getElementById('autoMaxLines').addEventListener('change', (e) => {
+                settings.autoMaxLines = e.target.checked;
+                document.getElementById('maxLines').disabled = settings.autoMaxLines;
+                localStorage.setItem('kickCommentScrollerSettings', JSON.stringify(settings));
+                lines.length = 0; // ラインをリセット
+            });
+
             document.getElementById('language').addEventListener('change', (e) => {
                 settings.language = e.target.value;
                 localStorage.setItem('kickCommentScrollerSettings', JSON.stringify(settings));
@@ -390,7 +420,7 @@
                     scrollContainer.removeChild(scrollContainer.firstChild);
                 }
                 displayedComments.clear();
-                usedHeights.length = 0;
+                lines.length = 0; // ラインもクリア
             });
 
             const header = settingsPanel.querySelector('h3');
@@ -415,7 +445,9 @@
 
             settingsPanel.ondragstart = () => false;
             settingsPanelInitialized = true;
-        } catch (e) {}
+        } catch (e) {
+            console.error('設定パネル作成エラー:', e);
+        }
     }
 
     function ensurePanelInDOM() {
@@ -423,7 +455,9 @@
             if (!document.getElementById('kickCommentScrollerSettings') && document.body) {
                 document.body.appendChild(settingsPanel);
             }
-        } catch (e) {}
+        } catch (e) {
+            console.error('パネルDOM確保エラー:', e);
+        }
     }
 
     function ensureButtonInDOM() {
@@ -431,7 +465,9 @@
             if (!document.getElementById('kickCommentScrollerButton') && document.body) {
                 document.body.appendChild(settingsButton);
             }
-        } catch (e) {}
+        } catch (e) {
+            console.error('ボタンDOM確保エラー:', e);
+        }
     }
 
     function ensurePanelAndContent() {
@@ -440,14 +476,18 @@
             if (settingsPanel.innerHTML.trim() === '' || !settingsPanelInitialized) {
                 createSettingsPanel();
             }
-        } catch (e) {}
+        } catch (e) {
+            console.error('パネルとコンテンツ確保エラー:', e);
+        }
     }
     setInterval(ensurePanelAndContent, 5000);
 
     function ensureSettingsButton() {
         try {
             ensureButtonInDOM();
-        } catch (e) {}
+        } catch (e) {
+            console.error('設定ボタン確保エラー:', e);
+        }
     }
     setInterval(ensureSettingsButton, 5000);
 
@@ -474,6 +514,7 @@
             }
             return videoFrame;
         } catch (e) {
+            console.error('ビデオフレーム取得エラー:', e);
             return {
                 offsetTop: 0,
                 offsetLeft: 0,
@@ -504,7 +545,9 @@
                 });
             };
             checkPosition();
-        } catch (e) {}
+        } catch (e) {
+            console.error('パネル位置設定エラー:', e);
+        }
     }
 
     function updateScrollContainer() {
@@ -525,44 +568,59 @@
             if (settingsPanel.classList.contains('visible')) {
                 setPanelPosition();
             }
-        } catch (e) {}
+        } catch (e) {
+            console.error('スクロールコンテナ更新エラー:', e);
+        }
     }
 
     const displayedComments = new Set();
-    const usedHeights = [];
-    const MAX_HEIGHTS = 10;
 
-    function getNextHeight(frameHeight, commentHeight) {
+    function getNextHeight(frameHeight, frameWidth, commentWidth) {
         try {
-            const maxHeight = frameHeight - commentHeight;
-            if (maxHeight < 0) return 0;
-
-            if (usedHeights.length === 0) {
-                usedHeights.push(0);
-                return 0;
-            }
-
             const fontSizePx = parseInt(settings.fontSize);
-            const scaledLineSpacing = fontSizePx * settings.lineSpacing;
-            const minSpacing = Math.max(fontSizePx, commentHeight);
-            const totalSpacing = minSpacing + scaledLineSpacing;
+            const commentHeight = fontSizePx;
+            const lineHeight = commentHeight * (1 + settings.lineSpacing);
+            const maxLines = settings.autoMaxLines
+                ? Math.floor(frameHeight / lineHeight)
+                : Math.min(MAX_LINES, Math.floor(frameHeight / lineHeight));
+
+            while (lines.length < maxLines) {
+                lines.push([]);
+            }
 
             if (settings.overlapComments) {
-                const randomHeight = Math.floor(Math.random() * maxHeight);
-                usedHeights.push(randomHeight);
-                return randomHeight;
+                const maxHeight = frameHeight - commentHeight;
+                return Math.floor(Math.random() * (maxHeight + 1));
             } else {
-                for (let i = 0; i <= maxHeight / totalSpacing; i++) {
-                    const height = i * totalSpacing;
-                    const topPosition = height % maxHeight;
-                    if (!usedHeights.some(h => Math.abs(h - topPosition) < minSpacing)) {
-                        usedHeights.push(topPosition);
-                        return topPosition;
+                const delta = (frameWidth + commentWidth) / (settings.duration * 60);
+                const reveal = commentWidth / delta;
+                const touch = frameWidth / delta;
+
+                for (let i = 0; i < maxLines; i++) {
+                    const line = lines[i] || [];
+                    const length = line.length;
+                    const lineTop = i * lineHeight;
+
+                    if (length === 0) {
+                        return lineTop;
+                    }
+
+                    const lastComment = line[length - 1];
+                    const lastDelta = (frameWidth + lastComment.width) / (settings.duration * 60);
+                    const lastReveal = lastComment.reveal;
+                    const lastTouch = lastComment.touch;
+
+                    if (
+                        (lastReveal <= 0 && lastDelta > delta) ||
+                        (lastComment.life < touch && lastDelta < delta)
+                    ) {
+                        return lineTop;
                     }
                 }
-                return Math.floor(Math.random() * maxHeight);
+                return -1;
             }
         } catch (e) {
+            console.error('getNextHeight エラー:', e);
             return 0;
         }
     }
@@ -582,7 +640,9 @@
                 0px ${-w}px 0 ${strokeColor}
             `;
             element.style.textShadow = shadow;
-        } catch (e) {}
+        } catch (e) {
+            console.error('ストローク適用エラー:', e);
+        }
     }
 
     function isNgComment(commentText) {
@@ -597,6 +657,7 @@
             }
             return false;
         } catch (e) {
+            console.error('NGコメント判定エラー:', e);
             return false;
         }
     }
@@ -660,7 +721,14 @@
             const commentHeight = scrollComment.offsetHeight;
             scrollComment.style.height = `${commentHeight}px`;
 
-            const topPosition = getNextHeight(frameHeight, commentHeight);
+            const topPosition = getNextHeight(frameHeight, frameWidth, commentWidth);
+            if (topPosition === -1) {
+                scrollComment.remove();
+                commentQueue.push({ commentText, imgElements, uniqueId, usernameColor });
+                displayedComments.delete(uniqueId);
+                return;
+            }
+
             scrollComment.style.top = `${topPosition}px`;
             scrollComment.style.left = `${frameWidth}px`;
 
@@ -670,16 +738,36 @@
                 transform: `translateX(${travelDistance}px)`
             });
 
+            const lineIndex = Math.floor(topPosition / (parseInt(settings.fontSize) * (1 + settings.lineSpacing)));
+            if (!settings.overlapComments && lines[lineIndex]) {
+                const delta = (frameWidth + commentWidth) / (settings.duration * 60);
+                const reveal = commentWidth / delta;
+                const touch = frameWidth / delta;
+                lines[lineIndex].push({
+                    left: frameWidth,
+                    width: commentWidth,
+                    element: scrollComment,
+                    life: settings.duration * 60,
+                    reveal: reveal,
+                    touch: touch,
+                    delta: delta
+                });
+            }
+
             scrollComment.addEventListener('transitionend', () => {
                 scrollComment.remove();
-                usedHeights.splice(usedHeights.indexOf(topPosition), 1);
+                if (!settings.overlapComments && lines[lineIndex]) {
+                    lines[lineIndex] = lines[lineIndex].filter(c => c.element !== scrollComment);
+                }
                 displayedComments.delete(uniqueId);
                 if (commentQueue.length > 0) {
                     const next = commentQueue.shift();
                     scrollComment(next.commentText, next.imgElements, next.uniqueId, next.usernameColor);
                 }
             }, { once: true });
-        } catch (e) {}
+        } catch (e) {
+            console.error('scrollComment エラー:', e);
+        }
     }
 
     function setupObserver(target) {
@@ -731,7 +819,10 @@
                 });
             });
             observer.observe(target, { childList: true, subtree: true });
-        } catch (e) {}
+            return observer;
+        } catch (e) {
+            console.error('オブザーバー設定エラー:', e);
+        }
     }
 
     function findChatContainer() {
@@ -745,6 +836,7 @@
                    document.querySelector('div[class*="betterhover"]') ||
                    document.body;
         } catch (e) {
+            console.error('チャットコンテナ検索エラー:', e);
             return document.body;
         }
     }
@@ -755,7 +847,9 @@
             if (chatContainer && !currentObserver) {
                 currentObserver = setupObserver(chatContainer);
             }
-        } catch (e) {}
+        } catch (e) {
+            console.error('チャットコンテナ監視エラー:', e);
+        }
         setTimeout(monitorChatContainer, 1000);
     }
 
@@ -773,7 +867,9 @@
             } else {
                 setTimeout(initialize, 1000);
             }
-        } catch (e) {}
+        } catch (e) {
+            console.error('初期化エラー:', e);
+        }
     }
 
     if (document.readyState === 'loading') {
